@@ -107,7 +107,7 @@ Tensor::Tensor(base::DataType data_type,
     allocate(alloc);
   } else { // 不需要分配 or 不需要管理
     if(ptr != nullptr){ // 外部数据, 一定不需要分配. 可能性只剩下 需要管理 or 不需要管理
-      CHECK(need_alloc = false)
+      CHECK(need_alloc == false)
         << "The need_alloc is is true when ptr parameter is not a null pointer.";
       // 需要管理 or 不需要管理
       init_buffer(alloc, data_type_, need_alloc, ptr);

@@ -27,7 +27,7 @@ namespace base{
         }
       }
       // LOG(INFO) << "Buffer::~Buffer()";
-      printf("内存已经释放\n");
+      // printf("内存已经释放\n");
     }
 
     size_t Buffer::byte_size() const {

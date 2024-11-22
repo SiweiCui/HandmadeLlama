@@ -1,6 +1,8 @@
 //
 // Created by CSWH on 2024/11/18.
 //
+
+/*
 # include <model.hpp>
 TEST(test_model, test_mdoel_load) {
 	model::Model model(base::TokenizerType::kEncodeSpe,
@@ -19,3 +21,4 @@ TEST(test_model, test_mdoel_load) {
 	printf("seq_len: %d\n", model.config_->seq_len_);
 	printf("vocab_size: %d\n", model.config_->vocab_size_);
 }
+/

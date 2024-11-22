@@ -56,7 +56,7 @@ namespace op {
 		// 带参情况下, 设置权重
 		virtual bool set_weight(int32_t idx, const tensor::Tensor& weight);
 		virtual bool set_weight(int32_t idx, const std::vector<int32_t>& dims,
-										const void* weight_ptr);
+										const void* weight_ptr, bool is_quant);
 
 
 		// layer name
@@ -123,7 +123,7 @@ namespace op {
 		void to_cuda() override;
 
 		bool set_weight(int32_t idx, const tensor::Tensor& weight) override;
-		bool set_weight(int32_t idx, const std::vector<int32_t>& dims, const void* weight_ptr) override;
+		bool set_weight(int32_t idx, const std::vector<int32_t>& dims, const void* weight_ptr, bool is_quant = true) override;
 		void set_scales(const tensor::Tensor& scales);
 		void set_group_size(int32_t group_size);
 

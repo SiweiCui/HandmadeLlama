@@ -21,7 +21,7 @@ namespace op {
 		return false;
 	}
 	bool BaseLayer::set_weight(int32_t idx, const std::vector<int32_t>& dims,
-									   const void* weight_ptr) {
+									   const void* weight_ptr, bool is_quant) {
 		LOG(ERROR) << "Not implemented yet";
 		return false;
 	}
@@ -167,28 +167,41 @@ namespace op {
 	 * 将mmap的数据设置成权重, 暂时还是放在cpu里面
 	 */
 	bool LayerParam::set_weight(int32_t idx, const std::vector<int32_t>& dims,
-	                                  const void* weight_ptr) {
+	                                  const void* weight_ptr, bool is_quant) {
 		CHECK_GE(idx, 0);
 		CHECK_LT(idx, weights_.size());
 		CHECK_NE(weight_ptr, nullptr);
 
-		// size_t size = std::accumulate(dims.begin(), dims.end(), sizeof(float), std::multiplies<>());
-		// 只支持int8量化后的模型, 先设置权重
-		size_t size = std::accumulate(dims.begin(), dims.end(), sizeof(int8_t), std::multiplies<>());
-		std::shared_ptr<base::Buffer> buffer =
-		    std::make_shared<base::Buffer>(size, nullptr, const_cast<void*>(weight_ptr), true);
-		buffer->set_device_type(base::DeviceType::kDeviceCPU);
-		tensor::Tensor weight(base::DataType::kDataTypeInt8, dims);
-		weight.set_device_type(base::DeviceType::kDeviceCPU);
-		CHECK(weight.assign(buffer));
-		weights_.at(idx) = weight;
+		if (is_quant) {
+			// int8量化后的模型, 先设置权重
+			size_t size = std::accumulate(dims.begin(), dims.end(), sizeof(int8_t), std::multiplies<>());
+			std::shared_ptr<base::Buffer> buffer =
+				std::make_shared<base::Buffer>(size, nullptr, const_cast<void*>(weight_ptr), true);
+			buffer->set_device_type(base::DeviceType::kDeviceCPU);
+			tensor::Tensor weight(base::DataType::kDataTypeInt8, dims);
+			weight.set_device_type(base::DeviceType::kDeviceCPU);
+			CHECK(weight.assign(buffer));
+			weights_.at(idx) = weight;
 
-		// 后设置scale
-		const int32_t weight_size = static_cast<int32_t>(weight.size());
-		CHECK(weight_size % group_size_ == 0);
-		int32_t scale_nums = weight_size / group_size_;
-		scales_ = tensor::Tensor{base::DataType::kDataTypeFp32, scale_nums, false, nullptr,
-		                         reinterpret_cast<float*>((int8_t*)weight_ptr + weight_size)};
+			// 后设置scale
+			const int32_t weight_size = static_cast<int32_t>(weight.size());
+			CHECK(weight_size % group_size_ == 0);
+			int32_t scale_nums = weight_size / group_size_;
+			scales_ = tensor::Tensor{base::DataType::kDataTypeFp32, scale_nums, false, nullptr,
+									 reinterpret_cast<float*>((int8_t*)weight_ptr + weight_size)};
+			scales_.set_device_type(base::DeviceType::kDeviceCPU);
+
+		} else {
+			// int8量化后的模型, 先设置权重
+			size_t size = std::accumulate(dims.begin(), dims.end(), sizeof(float), std::multiplies<>());
+			std::shared_ptr<base::Buffer> buffer =
+				std::make_shared<base::Buffer>(size, nullptr, const_cast<void*>(weight_ptr), true);
+			buffer->set_device_type(base::DeviceType::kDeviceCPU);
+			tensor::Tensor weight(base::DataType::kDataTypeFp32, dims);
+			weight.set_device_type(base::DeviceType::kDeviceCPU);
+			CHECK(weight.assign(buffer));
+			weights_.at(idx) = weight;
+		}
 
 		return true;
 	}
