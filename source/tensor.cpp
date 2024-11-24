@@ -253,7 +253,7 @@ void Tensor::to_cuda(){
     // 设置Device Type
     this->buffer_->set_device_type(base::DeviceType::kDeviceCUDA);
   } else {
-    LOG(INFO) << "The device type of the tensor is already cpu.";
+    LOG(INFO) << "The device type of the tensor is already cuda.";
   }
 }
 
@@ -272,7 +272,7 @@ void Tensor::to_cpu() {
     this->buffer_ = cpu_buffer;
     this->buffer_->set_device_type(base::DeviceType::kDeviceCPU);
   } else {
-    LOG(INFO) << "The device type of the tensor is already cuda.";
+    LOG(INFO) << "The device type of the tensor is already cpu.";
   }
 }
 
@@ -293,6 +293,7 @@ Tensor Tensor::clone() const {
   auto allocator = buffer_->allocator();
   new_tensor.buffer_ = std::make_shared<base::Buffer>(byte_size, allocator);
   new_tensor.buffer_->copy_from(buffer_.get());
+
   return new_tensor;
 }
 

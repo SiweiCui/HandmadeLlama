@@ -120,16 +120,31 @@ namespace model {
         if (device_type_ == base::DeviceType::kDeviceCPU) {
             return false;
         }
+        //printf("input before all layers\n");
+        //input.show_top5<float>();
 
         for (int32_t layer_idx = 0; layer_idx < config_->layer_num_; ++layer_idx) {
             attention_rms(layer_idx, input);
+            // printf("input after %d layers rmsnorm\n", layer_idx);
+            // input.show_top5<float>();
+            // printf("rmsnorm result after %d layers\n", layer_idx);
+            //this->get_buffer(base::ModelBufferType::kOutputRMSNorm).show_top5<float>();
+
             // attention (wq wk wv @ input)
             attention_qkv(layer_idx, pos_tensor);
+
             // multi-head attention
             attention_mha(layer_idx, pos_tensor);
+            //printf("attention result after %d layers\n", layer_idx);
+            //this->get_buffer(base::ModelBufferType::kAttnOutput).show_top5<float>();
+
             // feed forward
             feed_forward(layer_idx, input);
+            //printf("input after %d layers feedforward\n", layer_idx);
+            //input.show_top5<float>();
         }
+        //printf("input after all layers\n");
+        //input.show_top5<float>();
         cls_logits(input);
         return true;
     }
@@ -147,7 +162,8 @@ namespace model {
     int32_t LLama2Model::post_processing(const tensor::Tensor& pos, bool is_prompt) const {
         tensor::Tensor forward_output = get_buffer(base::ModelBufferType::kForwardOutput);
         const float* forward_logits = forward_output.ptr<float>();
-
+        //printf("forward_logits:\n");
+        //forward_output.show_top5<float>();
         int32_t next = 0;
         if (is_prompt) {
             next = -1;
@@ -181,15 +197,24 @@ namespace model {
 
         auto rmsnorm_output = get_buffer(base::ModelBufferType::kOutputRMSNorm);
         (query_layer->forward(rmsnorm_output, query));
+        //printf("query after projection in layer %d\n", layer_idx);
+        //query.show_top5<float>();
 
         // key
         const auto& key_layer = llama_layers_->wk_layers_.at(layer_idx);
         CHECK_NE(key_layer, nullptr) << "The key layer in the attention block is null pointer.";
         (key_layer->forward(rmsnorm_output, key));
+        //printf("key after projection in layer %d\n", layer_idx);
+        //key.show_top5<float>();
+        //printf("\n");
+        //key.show_digits<float>(256);
+
         // value
         const auto& value_layer = llama_layers_->wv_layers_.at(layer_idx);
         CHECK_NE(value_layer, nullptr) << "The value layer in the attention block is null pointer.";
         (value_layer->forward(rmsnorm_output, val));
+        //printf("value after projection in layer %d\n", layer_idx);
+        //val.show_top5<float>();
 
         // rope
         CHECK_NE(llama_layers_->rope_layer_, nullptr)
@@ -197,6 +222,10 @@ namespace model {
         (llama_layers_->rope_layer_->forward(
             query, key, pos_tensor, get_buffer(base::ModelBufferType::kSinCache),
             get_buffer(base::ModelBufferType::kCosCache), tensor::Tensor{}));
+        //printf("query after rope in layer %d\n", layer_idx);
+        //query.show_top5<float>();
+        //printf("key after rope in layer %d\n", layer_idx);
+        //key.show_top5<float>();
     }
 
     void LLama2Model::attention_mha(int32_t layer_idx, const tensor::Tensor& pos_tensor) const {
@@ -216,13 +245,22 @@ namespace model {
         int pos = pos_tensor.index<int32_t>(0);
         std::dynamic_pointer_cast<op::MultiHeadAttention>(mha_layer)->set_pos(pos);
         std::dynamic_pointer_cast<op::MultiHeadAttention>(mha_layer)->set_layer_idx(layer_idx);
-        (mha_layer->forward(query, score_storage, key_cache, val_cache, mha_output));
+        mha_layer->forward(query, score_storage, key_cache, val_cache, mha_output);
+
+        //printf("key cache in %d layers\n", layer_idx);
+        //key_cache.show_top5<float>();
+
+        //printf("value cache in %d layers\n", layer_idx);
+        //val_cache.show_top5<float>();
+
+        //printf("mha output in %d layers\n", layer_idx);
+        //mha_output.show_top5<float>();
 
         // wo @ attention output
         tensor::Tensor attn_output = get_buffer(base::ModelBufferType::kAttnOutput);
         const auto& wo_layer = llama_layers_->wo_layers_.at(layer_idx);
         CHECK_NE(wo_layer, nullptr) << "The weight output layer is null pointer.";
-        (wo_layer->forward(mha_output, attn_output));
+        wo_layer->forward(mha_output, attn_output);
     }
 
     void LLama2Model::feed_forward(int32_t layer_idx, const tensor::Tensor& input) const {
@@ -278,6 +316,7 @@ namespace model {
         tensor::Tensor forward_output = get_buffer(base::ModelBufferType::kForwardOutput);
         CHECK_NE(llama_layers_->cls_layer_, nullptr);
         (llama_layers_->cls_layer_->forward(input, forward_output));
+
     }
 
     op::EmbeddingOutput LLama2Model::embedding(const std::vector<int>& tokens) const {
@@ -331,6 +370,13 @@ namespace model {
             wq->set_group_size(group_size_);
             //is_quant默认为true
             wq->set_weight(0, {dim, dim}, this->raw_model_data_->weight(pos));
+
+            //printf("Wq weights at layer %d\n", i);
+            //wq->weights_[0].show_digits<int8_t>(100);
+
+            //printf("Wq scales at layer %d\n", i);
+            //wq->scales_.show_digits<float>(100);
+
             llama_layers_->wq_layers_.push_back(wq);
             pos = pos + dim * dim + wq->get_scale_num() * sizeof(float);
         }
@@ -392,8 +438,8 @@ namespace model {
 
         // wcls layer
         auto cls_layer = std::make_shared<op::MatmulLayer>(config_->vocab_size_, dim);
-            cls_layer->set_group_size(group_size_);
-            if (config_->is_shared_weight_) {
+        cls_layer->set_group_size(group_size_);
+        if (config_->is_shared_weight_) {
             // using token embedding weight
             cls_layer->set_weight(0, {config_->vocab_size_, dim}, this->raw_model_data_->weight(pos));
         } else {

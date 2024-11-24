@@ -83,21 +83,26 @@ namespace kernel {
 	// SGEMV: 矩阵-向量乘法
 	template<int THREAD_PER_BLOCK, int ROW_PER_BLOCK>
 	__global__ void matmul_kernel_cu_fp32int8(const float* input, const int8_t* weight,
-											const float* scale, const int32_t group_size,
+											const float* scales, const int32_t group_size,
 											float* output, int M, int K) {
 		__shared__ float sdata[THREAD_PER_BLOCK];
-		int tidInBlock = threadIdx.x;
+		unsigned int tidInBlock = threadIdx.x;
 		int startRow = blockIdx.x * ROW_PER_BLOCK;
-		int endRow = startRow + ROW_PER_BLOCK - 1;
+		int endRow = startRow + ROW_PER_BLOCK;
 		if (startRow >= K) {return;}
 		// K: row, M: col
-		for (int row = startRow; row <= endRow; ++row) {
-			if (row >= K) {break;}
+		for (int row = startRow; row < endRow; ++row) {
+			// if (row >= K) {break;}
 			sdata[tidInBlock] = 0;
 			// input与W的每一行做内积
-			int globalRow = row * M;
 			for (int i = tidInBlock; i < M; i += THREAD_PER_BLOCK) {
-				sdata[tidInBlock] += input[i] * scale[(globalRow + i) / group_size] * static_cast<float>(weight[globalRow+i]);
+				const int weight_idx = row*M+i;
+				const int group_idx = weight_idx / group_size;
+				sdata[tidInBlock] += input[i] * scales[group_idx] * static_cast<float>(weight[weight_idx]);
+				if (input[i] * scales[group_idx] * static_cast<float>(weight[weight_idx]) > 1000.f) {
+					printf("第%d个时间点, input的第%d维特征, scale的%d\n", row, i, group_idx);
+					printf("input[i]: %f, scale[group_idx]: %f, weight[weight_idx]: %f\n", input[i], scales[group_idx], static_cast<float>(weight[weight_idx]));
+				}
 			}
 			__syncthreads();
 

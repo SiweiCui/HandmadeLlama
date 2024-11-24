@@ -77,6 +77,7 @@ __global__ void argmax_kernel_fp32(const float* input_ptr, size_t size, size_t* 
     block_reduce_argmax(max_value, max_index, shared_max_value, shared_max_ptr);
     __syncthreads();
     if (threadIdx.x == 0) {
+      printf("%lu, %f\n", max_index, max_value);
       *output_idx = max_index;
     }
 }
@@ -86,7 +87,7 @@ size_t argmax_kernel_cu(const float* input_ptr, size_t size) {
       base::CUDADeviceAllocatorFactory::get_instance();
     size_t* index = static_cast<size_t*>(alloc_cu->allocate(sizeof(size_t)));
     size_t output_index = 0;
-    argmax_kernel_fp32<<<1, 512, 0>>>(input_ptr, size, index);
+    argmax_kernel_fp32<<<1, 512>>>(input_ptr, size, index);
     cudaMemcpy(&output_index, index, sizeof(size_t), cudaMemcpyDeviceToHost);
     return output_index;
 }

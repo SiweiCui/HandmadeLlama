@@ -22,6 +22,8 @@ int32_t generate(const model::LLama2Model& model, const std::string& sentence, i
         pos_tensor.index<int32_t>(0) = pos;
         if (pos < prompt_len - 1) {
             tensor::Tensor input = model.fill_input(pos_tensor, prompt_embedding, is_prompt);
+            //printf("input embedding:\n");
+            // input.show_top5<float>();
             model.predict(input, pos_tensor, is_prompt, next);
         } else {
             is_prompt = false;
@@ -42,7 +44,6 @@ int32_t generate(const model::LLama2Model& model, const std::string& sentence, i
         pos += 1;
     }
     if (need_output) {
-        printf("%s ", model.decode(words).data());
         fflush(stdout);
     }
     return std::min(pos, total_steps);
@@ -61,7 +62,7 @@ int main(int argc, char* argv[]) {
     if (!init_status) {
         LOG(FATAL) << "The model init failed";
     }
-    const std::string& sentence = "Damn";
+    const std::string& sentence = "Hello, I am";
 
     auto start = std::chrono::steady_clock::now();
     printf("Generating...\n");

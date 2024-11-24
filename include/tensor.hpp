@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 #include "buffer.hpp"
+#include "../../../../usr/local/cuda-11.6/targets/x86_64-linux/include/cuda_runtime_api.h"
 
 namespace tensor{
 
@@ -129,6 +130,12 @@ class Tensor {
     const T& index(int64_t offset) const;
 
     Tensor clone() const;
+
+	template<typename T>
+	void show_digits(size_t shows) const;
+
+	template<typename T>
+	void show_top5() const;
 };
 
 template<typename T>
@@ -171,5 +178,55 @@ const T* Tensor::ptr(int64_t index) const {
 		<< "The data area buffer of this tensor is empty or it points to a null pointer.";
 	return reinterpret_cast<const T*>(buffer_->ptr()) + index;
 }
+
+	template<typename T>
+	void Tensor::show_digits(size_t shows) const{
+	std::shared_ptr<base::Buffer> thisBuffer = this->get_buffer();
+	T* data_ptr = nullptr;
+	bool isMalloc = false;
+	if(thisBuffer->device_type() == base::DeviceType::kDeviceCUDA) {
+		data_ptr = (T*)malloc(sizeof(T) * this->size());
+		isMalloc = true;
+		cudaMemcpy(data_ptr, thisBuffer->ptr(), sizeof(T) * this->size(), cudaMemcpyDeviceToHost);
+	}else {
+		data_ptr = reinterpret_cast<T*>(thisBuffer->ptr());
+	}
+	for(size_t i = 0; i < shows; i++) {
+		printf("%f\n", (float)(data_ptr)[i]);
+		fflush(stdout);
+	}
+	if(isMalloc) {
+		free(data_ptr);
+	}
+}
+
+template<typename T>
+	void Tensor::show_top5() const {
+	std::shared_ptr<base::Buffer> thisBuffer = this->get_buffer();
+	T* data_ptr = nullptr;
+	bool isMalloc = false;
+	if(thisBuffer->device_type() == base::DeviceType::kDeviceCUDA) {
+		data_ptr = (T*)malloc(sizeof(T) * this->size());
+		isMalloc = true;
+		cudaMemcpy(data_ptr, thisBuffer->ptr(), sizeof(T) * this->size(), cudaMemcpyDeviceToHost);
+	}else {
+		data_ptr = reinterpret_cast<T*>(thisBuffer->ptr());
+	}
+	auto max_stack = std::vector<float>(5, 0.f);
+	for(size_t i = 0; i < this->size(); i++) {
+		for(size_t j = 0; j < max_stack.size(); j++) {
+			if((float)(data_ptr[i]) > max_stack[j]) {
+				max_stack[j] = (float)(data_ptr[i]);
+				break;
+			}
+		}
+	}
+	for(size_t i = 0; i < max_stack.size(); i++) {
+		printf("%f\n", max_stack[i]);
+		fflush(stdout);
+	}
+	if (isMalloc){free(data_ptr);}
+}
+
 } // namespace tensor
 #endif //TENSOR_HPP

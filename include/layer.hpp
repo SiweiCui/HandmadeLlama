@@ -106,7 +106,7 @@ namespace op {
 
 	// 带参数派生类, 特指权重层
 	class LayerParam : public Layer {
-	protected:
+	public:
 		int group_size_ = 0;
 		tensor::Tensor scales_;
 		std::vector<tensor::Tensor> weights_;
@@ -130,6 +130,9 @@ namespace op {
 		int32_t get_scale_num() const;
 
 		int32_t get_group_size() const;
+
 	};
+
+
 }
 #endif //LAYER_HPP

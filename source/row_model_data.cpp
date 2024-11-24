@@ -18,11 +18,11 @@ namespace model {
 	}
 
 	const void *RawModelDataFp32::weight(size_t offset) const {
-		return static_cast<const float*>(data + offset);
+		return static_cast<const float*>(weight_data + offset);
 	}
 
 	const void* RawModelDataInt8::weight(size_t offset) const {
-		return static_cast<const int8_t*>(data + offset);
+		return static_cast<const int8_t*>(weight_data + offset); // 这bug找了两天
 	}
 
 }
