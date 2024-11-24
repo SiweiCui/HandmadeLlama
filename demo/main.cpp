@@ -44,6 +44,7 @@ int32_t generate(const model::LLama2Model& model, const std::string& sentence, i
         pos += 1;
     }
     if (need_output) {
+        printf("%s ", model.decode(words).data());
         fflush(stdout);
     }
     return std::min(pos, total_steps);
@@ -62,7 +63,7 @@ int main(int argc, char* argv[]) {
     if (!init_status) {
         LOG(FATAL) << "The model init failed";
     }
-    const std::string& sentence = "Hello, I am";
+    const std::string& sentence = "Hello, what's up bro?";
 
     auto start = std::chrono::steady_clock::now();
     printf("Generating...\n");

@@ -77,7 +77,7 @@ __global__ void argmax_kernel_fp32(const float* input_ptr, size_t size, size_t* 
     block_reduce_argmax(max_value, max_index, shared_max_value, shared_max_ptr);
     __syncthreads();
     if (threadIdx.x == 0) {
-      printf("%lu, %f\n", max_index, max_value);
+      //printf("%lu, %f\n", max_index, max_value);
       *output_idx = max_index;
     }
 }
