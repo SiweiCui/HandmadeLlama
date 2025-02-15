@@ -63,7 +63,8 @@ int main(int argc, char* argv[]) {
     if (!init_status) {
         LOG(FATAL) << "The model init failed";
     }
-    const std::string& sentence = "Hello, what's up bro?";
+    // const std::string& sentence = "Hello, what's up bro?";
+    const std::string& sentence = "How's the weather today?\n";
 
     auto start = std::chrono::steady_clock::now();
     printf("Generating...\n");

@@ -5,7 +5,6 @@
 #ifndef TENSOR_HPP
 #define TENSOR_HPP
 
-#include <driver_types.h>
 #include <glog/logging.h>
 #include <memory>
 #include <vector>
@@ -179,8 +178,8 @@ const T* Tensor::ptr(int64_t index) const {
 	return reinterpret_cast<const T*>(buffer_->ptr()) + index;
 }
 
-	template<typename T>
-	void Tensor::show_digits(size_t shows) const{
+template<typename T>
+void Tensor::show_digits(size_t shows) const{
 	std::shared_ptr<base::Buffer> thisBuffer = this->get_buffer();
 	T* data_ptr = nullptr;
 	bool isMalloc = false;
@@ -201,7 +200,7 @@ const T* Tensor::ptr(int64_t index) const {
 }
 
 template<typename T>
-	void Tensor::show_top5() const {
+void Tensor::show_top5() const {
 	std::shared_ptr<base::Buffer> thisBuffer = this->get_buffer();
 	T* data_ptr = nullptr;
 	bool isMalloc = false;
