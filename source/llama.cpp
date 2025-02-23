@@ -544,7 +544,7 @@ void LLama2Model::init_mem() {
     tensor::Tensor attn(base::DataType::kDataTypeFp32, config_->head_num_, config_->seq_len_, true,
                       alloc);
     CHECK(insert_buffer(base::ModelBufferType::kScoreStorage, attn));
-    CHECK(insert_buffer(base::ModelBufferType::kAttnOutput, query));
+    CHECK(insert_buffer(base::ModelBufferType::kAttnOutput, query)); // 注意力的输出复用query
 
     // final forward output
     tensor::Tensor forward_output(base::DataType::kDataTypeFp32, config_->vocab_size_, true, alloc);

@@ -39,9 +39,10 @@ __device__ void rope_calc(float fcr, float fci, float* vec, int32_t idx) {
 __global__ void rope_kernel_cu_fp32(int pos, int dim, int kv_dim, int head_size,
 									const float* input_q, const float* input_k,
 									const float* sin_cache, const float* cos_cache) {
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	int idx = threadIdx.x + blockDim.x * blockIdx.x; // 全局线程索引
+	// 0号线程负责0和1, 1负责2和3, ...,
 	idx = idx * 2;
-	if (idx >= dim) {
+	if (idx >= dim) { // 超出则跳过.
 		return;
 	}
 

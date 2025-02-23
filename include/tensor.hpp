@@ -191,7 +191,7 @@ void Tensor::show_digits(size_t shows) const{
 		data_ptr = reinterpret_cast<T*>(thisBuffer->ptr());
 	}
 	for(size_t i = 0; i < shows; i++) {
-		printf("%f\n", (float)(data_ptr)[i]);
+		printf("%f\t", (float)(data_ptr)[i]);
 		fflush(stdout);
 	}
 	if(isMalloc) {

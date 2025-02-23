@@ -59,6 +59,15 @@ bool Model::generate_model_infos(const base::ModelConfig& config) {
 	}
 
 	config_->vocab_size_ = std::abs(config.vocab_size);
+
+	printf("layer_num = %d\n", config_->layer_num_);
+	printf("seq_len = %d\n", config_->seq_len_);
+	printf("head_num = %d\n", config_->head_num_);
+	printf("kv_head_num = %d\n", config_->kv_head_num_);
+	printf("kv_mul = %d\n", config_->kv_mul_);
+	printf("head_size = %d\n", config_->head_size_);
+	printf("kv_dim = %d\n", config_->kv_dim_);
+
 	return true;
 }
 
