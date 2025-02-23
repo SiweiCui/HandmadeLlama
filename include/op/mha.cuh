@@ -34,7 +34,16 @@ namespace kernel {
 					   int32_t kv_dim, int32_t kv_mul, int32_t head_size, const tensor::Tensor& mha_out,
 					   const tensor::Tensor& query_tensor, const tensor::Tensor& score_tensor,
 					   const tensor::Tensor& key_cache_tensor, const tensor::Tensor& value_cache_tensor);
+	__global__ void multi_head_attention_kernel(int32_t pos, int32_t seq_len, float* query,
+											float* score_ptr, float* output, float* key_cache,
+											float* value_cache, int32_t kv_dim, int32_t kv_mul,
+											int32_t head_num, int32_t head_size,
+											int32_t layer_offset);
+
+	__global__ void flash_attention_kernel(int32_t pos, int32_t seq_len, float* query,
+												float* score_ptr, float* output, float* key_cache,
+												float* value_cache, int32_t kv_dim, int32_t kv_mul,
+												int32_t head_num, int32_t head_size,
+												int32_t layer_offset);
 }
-
-
 #endif //MHA_CUH

@@ -82,6 +82,11 @@ __device__ void softmax_gpu(float* __restrict__ x, int size) {
 	 for (int i = tid; i < size; i += step) {
 	   x[i] /= sum;
 	 }
+
+	// if(tid == 0) {
+	// 	printf("mha, head_id: %d, l = %f, m = %f\n", blockIdx.x, sum, max_val);
+	// }
+
 }
 
 __global__ void multi_head_attention_kernel(int32_t pos, int32_t seq_len, float* query,
@@ -144,10 +149,101 @@ __global__ void multi_head_attention_kernel(int32_t pos, int32_t seq_len, float*
 		}
 		output_head[i] = value;
 	}
+	// if (threadIdx.x == 0) {
+	// 	printf("mha, head_id = %d, kv_head_offset = %d, q_head_offset = %d\n", blockIdx.x, head_offset, head*head_size);
+	// }
 }
 
+//一个block处理一个head
+__global__ void flash_attention_kernel(int32_t pos, int32_t seq_len, float* query,
+												float* score_ptr, float* output, float* key_cache,
+												float* value_cache, int32_t kv_dim, int32_t kv_mul,
+												int32_t head_num, int32_t head_size,
+												int32_t layer_offset) {
+	int head_id = blockIdx.x;
+	if (head_id >= head_num) {return;}
+	int kv_head_offset = (head_id / kv_mul) * head_size;
+	int q_head_offset = head_id * head_size;
+	int tid = threadIdx.x;
+
+	float scale = 1.f / sqrtf(head_size);
+
+	extern __shared__ float shared_mem[];
+	float* shared_q = shared_mem;
+	float* shared_k_t = shared_q + head_size;
+	float* shared_v_t = shared_k_t + head_size;
+	float* shared_o_t = shared_v_t + head_size;
+	float* m = shared_o_t + head_size;
+	float* l = m+1;
+
+	/*
+	__shared__ float m;
+	__shared__ float l;
+	__shared__ float shared_q[HEAD_SIZE];
+	__shared__ float shared_k_t[HEAD_SIZE];
+	__shared__ float shared_v_t[HEAD_SIZE];
+	__shared__ float shared_o_t[HEAD_SIZE];
+	*/
+	// 初始化共享变量
+	*m = -FLT_MIN;
+	*l = 0;
+	for(int h = 0; h < head_size; h++) {
+		shared_o_t[h] = 0.0f;
+	}
+	__syncthreads();
+
+	// 并行load query, output
+	float* q_t = query + q_head_offset;
+	for(int i = tid; i < head_size; i += blockDim.x) {
+		shared_q[i] = q_t[i];
+	}
+	__syncthreads();
+
+
+	for (int t = 0; t <= pos; t ++) { // 此处不做并行化
+		// 并行load k_t, v_t
+		float* k_t = key_cache + layer_offset + t * kv_dim + kv_head_offset;
+		float* v_t = value_cache + layer_offset + t * kv_dim + kv_head_offset;
+		for(int i = tid; i < head_size; i += blockDim.x) {
+			shared_k_t[i] = k_t[i];
+			shared_v_t[i] = v_t[i];
+		}
+		__syncthreads();
+
+		// 内积<q, k_t>
+		float s_t = 0.f;
+		for (int j = 0; j < head_size; j++) {
+			s_t += shared_q[j] * shared_k_t[j];
+		}
+		s_t *= scale; // block中每个线程都有一份, 而且一样大
+
+		// 更新m和l
+		float m_old = *m;
+		if(tid == 0) { // 赋值, 让多个线程做也没关系, 这里让一个线程去做
+			*m = max(m_old, s_t);
+			*l = expf(m_old - *m) * *l + expf(s_t - *m);
+		}
+		__syncthreads();
+
+		// 动员所有线程更新O
+		float p_t = expf(s_t - *m);
+		for(int i = tid; i < head_size; i += blockDim.x) {
+			shared_o_t[i] = expf(m_old - *m) * shared_o_t[i] + p_t * shared_v_t[i]; // 线程之间不会有写冲突
+		}
+		__syncthreads();
+	}
+
+	// 用最终的l更新
+	float* o = output + q_head_offset;
+	for(int i = tid; i < head_size; i += blockDim.x) {
+		o[i] = shared_o_t[i] / *l;
+	}
+
+}
+
+
 void mha_kernel_cu(int32_t pos, int32_t head_num, int32_t layer_index, int32_t seq_len,
-                   int32_t kv_dim, int32_t kv_mul, int32_t head_size, const tensor::Tensor& mha_out,
+                   int32_t kv_dim, int32_t kv_mul, const int32_t head_size, const tensor::Tensor& mha_out,
                    const tensor::Tensor& query_tensor, const tensor::Tensor& score_tensor,
                    const tensor::Tensor& key_cache_tensor, const tensor::Tensor& value_cache_tensor) {
 	int32_t layer_offset = layer_index * seq_len * kv_dim;
@@ -158,7 +254,10 @@ void mha_kernel_cu(int32_t pos, int32_t head_num, int32_t layer_index, int32_t s
 	float* key_cache = const_cast<float*>(key_cache_tensor.ptr<float>());
 	float* value_cache = const_cast<float*>(value_cache_tensor.ptr<float>());
 
-	multi_head_attention_kernel<<<head_num, thread_num>>>( // 一个block处理一个head, 一个head进行一次矩阵向量乘法
+	// multi_head_attention_kernel<<<head_num, thread_num>>>( // 一个block处理一个head
+	//   pos, seq_len, query, score, output, key_cache, value_cache, kv_dim, kv_mul, head_num,
+	//   head_size, layer_offset);
+	flash_attention_kernel<<<head_num, thread_num, (head_size*4+2)*sizeof(float)>>>(
 	  pos, seq_len, query, score, output, key_cache, value_cache, kv_dim, kv_mul, head_num,
 	  head_size, layer_offset);
 }
