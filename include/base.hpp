@@ -60,7 +60,7 @@ enum class ModelBufferType {
 	kW3Output = 12,
 	kFFNRMSNorm = 13,
 	kForwardOutput = 15,
-	kForwardOutputCPU = 16,
+	kForwardOutputSoftmax = 16,
 
 	kSinCache = 17,
 	kCosCache = 18,
@@ -110,6 +110,17 @@ enum class LayerType : uint8_t {
 	kLayerAdd = 9,
 	kLayerSwiGLU = 10,
 };
+
+enum class AttentionConfig : uint8_t {
+	kGQA = 0,
+	kFlashAttention = 1
+};
+
+enum class SamplerConfig : uint8_t {
+	kArgMaxSampler = 0,
+	kTopkSampler = 1
+};
+
 }
 
 

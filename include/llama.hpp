@@ -23,6 +23,7 @@ struct LLama2Layers {
     std::vector<std::shared_ptr<op::Layer>> rmsnorm_layers_;
     std::vector<std::shared_ptr<op::Layer>> w3_layers_;
     std::shared_ptr<op::Layer> cls_layer_;
+    std::shared_ptr<op::Layer> final_softmax_layer_;
 
     std::shared_ptr<op::Layer> embedding_layer_;
 
@@ -30,14 +31,20 @@ struct LLama2Layers {
 };
 
 class LLama2Model : public Model {
-private:
     std::unique_ptr<LLama2Layers> llama_layers_;
 
 public:
     explicit LLama2Model(base::TokenizerType tokenizer_type, std::string token_path,
                        std::string model_path);
 
+    LLama2Model(base::TokenizerType tokenizer_type, std::string token_path,
+                    std::string model_path, base::AttentionConfig attention_config, base::SamplerConfig sampler_config);
+
+    LLama2Model(base::TokenizerType tokenizer_type, std::string token_path,
+                    std::string model_path, base::SamplerConfig sampler_config);
+
     bool init() override;
+    bool init(size_t topk) override;
 
     // 模型相关
     bool predict(const tensor::Tensor& input, const tensor::Tensor& pos_tensor,

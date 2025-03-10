@@ -6,23 +6,27 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 namespace model {
-Model::Model(base::TokenizerType tokenizer_type, base::ModelType model_type, std::string token_path, std::string model_path)
+Model::Model(base::TokenizerType tokenizer_type, base::ModelType model_type, std::string token_path, std::string model_path,
+	 base::AttentionConfig attention_config, base::SamplerConfig sampler_config)
 	: tokenizer_type_(tokenizer_type),
 	model_type_(model_type),
 	token_path_(std::move(token_path)),
-	model_path_(std::move(model_path)){}
+	model_path_(std::move(model_path)),
+	attention_config_(attention_config),
+	sampler_config_(sampler_config)
+	{}
 
 bool Model::read_model_file() {
 	// 读取config并进行配置
 	FILE* file = fopen(model_path_.data(), "rb");
 	if (!file) {LOG(FATAL) << "Failed to open model file " << model_path_ << "\n";}
 	auto config = base::ModelConfig{}; // 聚合初始化
-	fread(&config, sizeof(base::ModelConfig), 1, file);
+	auto _ = fread(&config, sizeof(base::ModelConfig), 1, file);
 	auto gen_status = generate_model_infos(config);
 	CHECK(gen_status == true);
 
 	// 读入量化的group_size
-	fread(&group_size_, sizeof(int32_t), 1, file);
+	_ = fread(&group_size_, sizeof(int32_t), 1, file);
 
 
 	// 设置权重指针
@@ -183,11 +187,14 @@ tensor::Tensor Model::fill_input(const tensor::Tensor& pos_tensor,
 	auto [input_tokens, input_embeddings, input_token_num] = embedding_output;
 
 	int32_t index = 0;
+	/*
+	 * 如果是prompt阶段, 就从prompt_len*config->dim中抽取对应的seq向量, 打包成(config->dim, )的张量返回
+	 * 如果是decoding阶段, 覆盖第一个seq的值, 并且就用这个值
+	 */
 	if (is_prompt) {
-	index = pos;
+		index = pos;
 	}
-	std::shared_ptr<base::Buffer> input_emb_buffer =
-	  std::make_shared<base::Buffer>(config_->dim_ * sizeof(float), nullptr,
+	std::shared_ptr<base::Buffer> input_emb_buffer = std::make_shared<base::Buffer>(config_->dim_ * sizeof(float), nullptr,
 	                                 input_embeddings.ptr<float>(index * config_->dim_), true);
 
 	tensor::Tensor input(base::DataType::kDataTypeFp32, config_->dim_);

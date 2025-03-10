@@ -39,6 +39,7 @@ bool Layer::forward() {
 	LOG(ERROR) << "Not implemented yet";
 	return false;
 }
+
 bool Layer::forward(const tensor::Tensor& input1, const tensor::Tensor& output1) {
 	this->set_input(0, input1);
 	this->set_output(0, output1);
@@ -84,7 +85,6 @@ bool Layer::forward(const tensor::Tensor& input1, const tensor::Tensor& input2,
 	this->set_output(0, output1);
 	return this->forward();
 }
-
 
 void Layer::set_input(int32_t idx, const tensor::Tensor& input) {
 	CHECK_GE(idx, 0);

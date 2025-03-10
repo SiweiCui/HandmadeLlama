@@ -26,6 +26,8 @@ public:
 	std::map<base::ModelBufferType, tensor::Tensor> buffers_; // 激活值等临时变量存储, 内存复用
 	std::unique_ptr<sampler::Sampler> sampler_;
 	std::shared_ptr<RawModelData> raw_model_data_;
+	base::AttentionConfig attention_config_ = base::AttentionConfig::kFlashAttention;
+	base::SamplerConfig sampler_config_ = base::SamplerConfig::kTopkSampler;
 	base::DeviceType device_type_ = base::DeviceType::kDeviceCUDA;
 	base::ModelType model_type_ = base::ModelType::kModelTypeUnknown;
 	base::TokenizerType tokenizer_type_ = base::TokenizerType::kEncodeUnknown;
@@ -34,9 +36,11 @@ public:
 	explicit Model(base::TokenizerType tokenizer_type,
 	               base::ModelType model_type,
 	               std::string token_path,
-	               std::string model_path);
+	               std::string model_path,
+	               base::AttentionConfig attention_config, base::SamplerConfig sampler_config);
 	// 类相关
 	virtual bool init() = 0;
+	virtual bool init(size_t k) = 0;
 	virtual void init_mem() = 0;
 	virtual bool create_layers() = 0;
 	virtual void create_nonparam_layers() = 0;
