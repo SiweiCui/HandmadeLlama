@@ -40,32 +40,10 @@ TEST(test_attention, test1) {
     cudaMemcpy(k_cache_gpu, k_cache, sizeof(float) * layer_num * seq_len * kv_dim, cudaMemcpyHostToDevice);
     cudaMemcpy(v_cache_gpu, v_cache, sizeof(float) * layer_num * seq_len * kv_dim, cudaMemcpyHostToDevice);
 
-    /*
-    // 创建Tensor
-    tensor::Tensor q_tensor(base::DataType::kDataTypeFp32, head_num*head_size, false, nullptr, q_gpu);
-    tensor::Tensor k_cache_tensor(base::DataType::kDataTypeFp32, layer_num, seq_len,
-                       kv_dim, false, nullptr, k_cache_gpu);
-    tensor::Tensor v_cache_tensor(base::DataType::kDataTypeFp32, layer_num, seq_len,
-                       kv_dim, false, nullptr, v_cache_gpu);
-    tensor::Tensor score_tensor(base::DataType::kDataTypeFp32, head_num, seq_len,
-                        false, nullptr, score_gpu);
-    tensor::Tensor output_tensor(base::DataType::kDataTypeFp32, head_num*head_size, false, nullptr, output_gpu);
-
-    q_tensor.set_device_type(base::DeviceType::kDeviceCUDA);
-    k_cache_tensor.set_device_type(base::DeviceType::kDeviceCUDA);
-    v_cache_tensor.set_device_type(base::DeviceType::kDeviceCUDA);
-    score_tensor.set_device_type(base::DeviceType::kDeviceCUDA);
-    output_tensor.set_device_type(base::DeviceType::kDeviceCUDA);
-    */
 
     // 执行核函数
     kernel::multi_head_attention_kernel<<<head_num, 128>>>(pos, seq_len, q_gpu, score_gpu, output_gpu,
         k_cache_gpu, v_cache_gpu, kv_dim, kv_mul, head_num, head_size, layer_idx * seq_len * kv_dim);
-
-    /*
-    kernel::mha_kernel_cu(pos, head_num, layer_idx, seq_len, kv_dim, kv_mul, head_size,
-        output_tensor, q_tensor, score_tensor, k_cache_tensor, v_cache_tensor);
-    */
 
     // 展示结果
     tensor::Tensor q_tensor(base::DataType::kDataTypeFp32, head_num*head_size, false, nullptr, q_gpu);
@@ -97,7 +75,6 @@ TEST(test_attention, test1) {
         if(output_tensor.index<float>(i) != output_flash_tensor.index<float>(i)) {
             printf("output_gpu[%d] = %f, output_flash[%d] = %f \n", i, output_tensor.index<float>(i), i, output_flash_tensor.index<float>(i));
         }
-
     }
 
 }

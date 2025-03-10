@@ -16,10 +16,25 @@ MultiHeadAttention::MultiHeadAttention(int32_t layer_index,
 	  kv_dim_(kv_dim),
 	  seq_len_(seq_len),
 	  head_num_(head_num),
-	  head_size_(head_size) {
+	  head_size_(head_size), attention_config_(base::AttentionConfig::kFlashAttention){
 	reset_input_size(5);
 	reset_output_size(1);
 }
+
+MultiHeadAttention::MultiHeadAttention(int32_t layer_index,
+									   int32_t kv_mul, int32_t kv_dim, int32_t seq_len,
+									   int32_t head_num, int32_t head_size, base::AttentionConfig attention_config)
+		: Layer(base::LayerType::kLayerMHA, "MultiHead"),
+		  layer_index_(layer_index),
+		  kv_mul_(kv_mul), // kv头需要"复制"的倍数
+		  kv_dim_(kv_dim),
+		  seq_len_(seq_len),
+		  head_num_(head_num),
+		  head_size_(head_size), attention_config_(attention_config){
+	reset_input_size(5);
+	reset_output_size(1);
+}
+
 
 bool MultiHeadAttention::forward() {
 	const tensor::Tensor& mha_out = this->get_output(0);
@@ -176,21 +191,13 @@ __global__ void flash_attention_kernel(int32_t pos, int32_t seq_len, float* quer
 	float* m = shared_o_t + head_size;
 	float* l = m+1;
 
-	/*
-	__shared__ float m;
-	__shared__ float l;
-	__shared__ float shared_q[HEAD_SIZE];
-	__shared__ float shared_k_t[HEAD_SIZE];
-	__shared__ float shared_v_t[HEAD_SIZE];
-	__shared__ float shared_o_t[HEAD_SIZE];
-	*/
 	// 初始化共享变量
 	*m = -FLT_MIN;
 	*l = 0;
 	for(int h = 0; h < head_size; h++) {
 		shared_o_t[h] = 0.0f;
 	}
-	__syncthreads();
+	// __syncthreads();
 
 	// 并行load query, output
 	float* q_t = query + q_head_offset;
@@ -254,12 +261,33 @@ void mha_kernel_cu(int32_t pos, int32_t head_num, int32_t layer_index, int32_t s
 	float* key_cache = const_cast<float*>(key_cache_tensor.ptr<float>());
 	float* value_cache = const_cast<float*>(value_cache_tensor.ptr<float>());
 
-	// multi_head_attention_kernel<<<head_num, thread_num>>>( // 一个block处理一个head
-	//   pos, seq_len, query, score, output, key_cache, value_cache, kv_dim, kv_mul, head_num,
-	//   head_size, layer_offset);
 	flash_attention_kernel<<<head_num, thread_num, (head_size*4+2)*sizeof(float)>>>(
 	  pos, seq_len, query, score, output, key_cache, value_cache, kv_dim, kv_mul, head_num,
 	  head_size, layer_offset);
+}
+
+void mha_kernel_cu(int32_t pos, int32_t head_num, int32_t layer_index, int32_t seq_len,
+					   int32_t kv_dim, int32_t kv_mul, const int32_t head_size, const tensor::Tensor& mha_out,
+					   const tensor::Tensor& query_tensor, const tensor::Tensor& score_tensor,
+					   const tensor::Tensor& key_cache_tensor, const tensor::Tensor& value_cache_tensor,
+					   base::AttentionConfig attention_config) {
+	int32_t layer_offset = layer_index * seq_len * kv_dim;
+	float* query = const_cast<float*>(query_tensor.ptr<float>());
+	float* score = const_cast<float*>(score_tensor.ptr<float>());
+	float* output = const_cast<float*>(mha_out.ptr<float>());
+
+	float* key_cache = const_cast<float*>(key_cache_tensor.ptr<float>());
+	float* value_cache = const_cast<float*>(value_cache_tensor.ptr<float>());
+
+	if(attention_config == base::AttentionConfig::kGQA) {
+		multi_head_attention_kernel<<<head_num, thread_num>>>( // 一个block处理一个head
+		  pos, seq_len, query, score, output, key_cache, value_cache, kv_dim, kv_mul, head_num,
+		  head_size, layer_offset);
+	}else {
+		flash_attention_kernel<<<head_num, thread_num, (head_size*4+2)*sizeof(float)>>>(
+		  pos, seq_len, query, score, output, key_cache, value_cache, kv_dim, kv_mul, head_num,
+		  head_size, layer_offset);
+	}
 }
 
 }  // namespace kernel
