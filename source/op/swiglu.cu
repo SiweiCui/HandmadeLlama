@@ -21,6 +21,7 @@ bool SwiGLULayer::forward() {
 }
 
 namespace kernel {
+// 多block以实现覆盖所有元素, 不涉及规约, 与加法类似
 // in1 * sigma(in1) * in2
 __global__ void swiglu_kernel_cu_fp32(int size, const float* in1, const float* in2, float* out) {
 	int tid = threadIdx.x;
