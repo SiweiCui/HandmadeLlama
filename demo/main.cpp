@@ -22,8 +22,6 @@ int32_t generate(const model::LLama2Model& model, const std::string& sentence, i
         pos_tensor.index<int32_t>(0) = pos;
         if (pos < prompt_len - 1) {
             tensor::Tensor input = model.fill_input(pos_tensor, prompt_embedding, is_prompt);
-            //printf("input embedding:\n");
-            // input.show_top5<float>();
             model.predict(input, pos_tensor, is_prompt, next);
         } else {
             is_prompt = false;
@@ -58,18 +56,24 @@ int main(int argc, char* argv[]) {
     const char* checkpoint_path = argv[1];  // e.g. out/model.bin
     const char* tokenizer_path = argv[2];
 
-    model::LLama2Model model(base::TokenizerType::kEncodeSpe, tokenizer_path, checkpoint_path);
-    auto init_status = model.init();
+    model::LLama2Model model(base::TokenizerType::kEncodeSpe, tokenizer_path, checkpoint_path,
+        base::AttentionConfig::kFlashAttention, base::SamplerConfig::kTopkSampler);
+    auto init_status = model.init(3);
     if (!init_status) {
         LOG(FATAL) << "The model init failed";
     }
     // const std::string& sentence = "Hello, what's up bro?";
-    const std::string& sentence = "How's the weather today?\n";
+    // const std::string& sentence = "How's the weather today?\n";
+    const std::string& sentence = "How to define probability mathematically? Answer this question.\n";
+    // const std::string& sentence = "How many 'r' in 'strawberry'?\n";
+    // const std::string& sentence = "Which is bigger, 9.11 or 9.8? Calculate 9.11 minus 9.8, and answer the question.\n";
+    // const std::string& sentence = "Write the code of quick sort algorithm in C++\n";
+
 
     auto start = std::chrono::steady_clock::now();
     printf("Generating...\n");
     fflush(stdout);
-    int steps = generate(model, sentence, 128, true);
+    int steps = generate(model, sentence, 256, true);
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration<double>(end - start).count();
     printf("\nsteps/s:%lf\n", static_cast<double>(steps) / duration);
