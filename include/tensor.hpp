@@ -14,13 +14,13 @@
 namespace tensor{
 
 class Tensor {
-  private:
+private:
     size_t size_;
     std::vector<int32_t> dims_;
     std::shared_ptr<base::Buffer> buffer_;
     base::DataType data_type_ = base::DataType::kDataTypeUnknown;
 
-  public:
+public:
 	/*
 	 *默认初始化. 方便后续编程.
 	 *因为tensor是不持有数据的, 所以我们在类里面使用的tensor都不是指针.

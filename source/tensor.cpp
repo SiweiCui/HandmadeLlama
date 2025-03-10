@@ -209,10 +209,10 @@ int32_t Tensor::get_dim(int32_t idx) const {
  */
 void Tensor::reshape(const std::vector<int32_t>& dims) {
     size_t size = reduce_dimension(dims.begin(), dims.end(), 1);
-    if(!buffer_){
-    this->dims_ = dims;
-    this->size_ = size;
-    return;
+    if(!buffer_){ // 如果是一个空张量, 仅仅修改数据即可
+        this->dims_ = dims;
+        this->size_ = size;
+        return;
     }
     if (size > size_) {// 如果形状变大
     // 创建buffer的时候会自己申请内存

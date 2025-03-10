@@ -9,18 +9,20 @@
 # include "tensor.hpp"
 
 namespace op {
-	class VecAddLayer : public Layer {
-	public:
-		explicit VecAddLayer();
+class VecAddLayer : public Layer {
+public:
+	explicit VecAddLayer();
 
-		bool forward() override;
-	};
+	bool forward() override;
+
+	using Layer::forward;
+};
 }
 
 
 namespace kernel {
-	void add_kernel_cu(const tensor::Tensor& input1, const tensor::Tensor& input2,
-				   const tensor::Tensor& output, void* stream = nullptr);
+void add_kernel_cu(const tensor::Tensor& input1, const tensor::Tensor& input2,
+			   const tensor::Tensor& output, void* stream = nullptr);
 }
 
 #endif //ADD_CUH
